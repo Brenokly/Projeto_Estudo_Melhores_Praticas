@@ -61,7 +61,7 @@ public interface TarefaPortOut {
    * @post A tarefa é atualizada no banco de dados.
    * @throws RegraNegocioException se a tarefa não for válida.
    */
-  void update(Tarefa tarefa);
+  Optional<Tarefa> update(Tarefa tarefa);
 
   /**
    * Verifica se uma tarefa existe pelo ID.

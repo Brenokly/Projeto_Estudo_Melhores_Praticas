@@ -41,7 +41,7 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
 
    @Override
    @Transactional
-   public Usuario save(Usuario usuario) {
+   public Optional<Usuario> save(Usuario usuario) {
       String sql = "{call sp_SalvarUsuario(?, ?, ?, ?)}";
 
       try (Connection conn = dataSource.getConnection();
@@ -58,9 +58,7 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
          String novoIdString = cs.getString(4);
          UUID novoId = UUID.fromString(novoIdString);
 
-         usuario.setId(novoId);
-
-         return usuario;
+         return findById(novoId);
       } catch (SQLException e) {
          throw new RuntimeException("Erro ao salvar usuário no banco de dados.", e);
       }
@@ -150,7 +148,7 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
 
    @Override
    @Transactional
-   public void update(Usuario user) {
+   public Optional<Usuario> update(Usuario user) {
       String sql = "{call sp_AtualizarDadosUsuario(?, ?, ?)}";
 
       try (Connection conn = dataSource.getConnection();
@@ -161,6 +159,8 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
          cs.setString(3, user.getEmail());
 
          cs.execute();
+
+         return findById(user.getId());
       } catch (SQLException e) {
          throw new RuntimeException("Erro ao atualizar usuário no banco de dados.", e);
       }

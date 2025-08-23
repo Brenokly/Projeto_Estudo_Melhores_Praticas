@@ -9,12 +9,14 @@ import br.com.myproject.projeto_para_estudo.core.port.in.TarefaPortIn;
 import br.com.myproject.projeto_para_estudo.core.port.out.TarefaPortOut;
 import br.com.myproject.projeto_para_estudo.infrastructure.dto.tarefa.TarefaRequest;
 import br.com.myproject.projeto_para_estudo.infrastructure.dto.tarefa.TarefaResponse;
+import br.com.myproject.projeto_para_estudo.infrastructure.mapper.TarefaMapper;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class TarefaApplication implements TarefaPortIn {
 
   private final TarefaPortOut tarefaPortOut;
+  private final TarefaMapper tarefaMapper;
 
   @Override
   public TarefaResponse cadastrarTarefaDeUsuarioLogado(UUID id, TarefaRequest requestDTO, UserDetails usuarioInfos) {

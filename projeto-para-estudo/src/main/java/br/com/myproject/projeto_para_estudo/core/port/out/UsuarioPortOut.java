@@ -28,7 +28,7 @@ public interface UsuarioPortOut {
     * @post O usuário é persistido no banco de dados
     * @throws RegraNegocioException se o usuário não for válido.
     */
-   Usuario save(Usuario user);
+   Optional<Usuario> save(Usuario user);
 
    /**
     * Busca um usuário pelo email.
@@ -80,13 +80,13 @@ public interface UsuarioPortOut {
     * @post O usuário é atualizado no banco de dados
     * @throws RegraNegocioException se o usuário não for válido.
     */
-   void update(Usuario user);
+   Optional<Usuario> update(Usuario user);
 
    /**
     * Atualiza a senha de um usuário.
     *
-    * @param senhaAtual a senha atual do usuário
-    * @param novaSenha a nova senha do usuário
+    * @param senhaAtual       a senha atual do usuário
+    * @param novaSenha        a nova senha do usuário
     * @param confirmacaoSenha a confirmação da nova senha
     * @pre A senha atual deve ser válida
     * @post A senha do usuário é atualizada no banco de dados

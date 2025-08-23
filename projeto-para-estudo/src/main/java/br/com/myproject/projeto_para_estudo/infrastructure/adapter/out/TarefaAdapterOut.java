@@ -123,7 +123,7 @@ public class TarefaAdapterOut implements TarefaPortOut {
 
   @Override
   @Transactional()
-  public void update(Tarefa tarefa) {
+  public Optional<Tarefa> update(Tarefa tarefa) {
     String sql = "{call sp_AtualizarTarefa(?,?,?,?,?,?)}";
 
     try (Connection conn = dataSource.getConnection();
@@ -137,6 +137,8 @@ public class TarefaAdapterOut implements TarefaPortOut {
       cs.setObject(6, tarefa.getUsuario().getId());
 
       cs.execute();
+
+      return findById(tarefa.getId());
     } catch (SQLException e) {
       throw new RuntimeException("Erro ao atualizar tarefa no banco de dados.", e);
     }

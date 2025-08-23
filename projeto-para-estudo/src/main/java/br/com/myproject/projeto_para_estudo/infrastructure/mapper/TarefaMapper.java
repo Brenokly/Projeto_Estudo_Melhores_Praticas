@@ -13,6 +13,18 @@ public class TarefaMapper {
         tarefa.getTitulo(),
         tarefa.getDescricao(),
         tarefa.getDataVencimento(),
-        tarefa.isConcluida());
+        tarefa.isConcluida(),
+        tarefa.getUsuario().getId());
   }
+
+  public Tarefa toDomain(TarefaResponse response) {
+    return new Tarefa(
+        response.id(),
+        response.titulo(),
+        response.descricao(),
+        response.dataVencimento(),
+        response.isConcluida(),
+        response.usuarioId());
+  }
+
 }
