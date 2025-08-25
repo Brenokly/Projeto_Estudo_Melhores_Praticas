@@ -149,14 +149,13 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
    @Override
    @Transactional
    public Optional<Usuario> update(Usuario user) {
-      String sql = "{call sp_AtualizarDadosUsuario(?, ?, ?)}";
+      String sql = "{call sp_AtualizarDadosUsuario(?, ?)}";
 
       try (Connection conn = dataSource.getConnection();
             CallableStatement cs = conn.prepareCall(sql)) {
 
          cs.setObject(1, user.getId());
          cs.setString(2, user.getNome());
-         cs.setString(3, user.getEmail());
 
          cs.execute();
 

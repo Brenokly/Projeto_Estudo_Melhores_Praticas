@@ -3,8 +3,10 @@ package br.com.myproject.projeto_para_estudo.core.port.in;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import br.com.myproject.projeto_para_estudo.infrastructure.dto.tarefa.TarefaAtualizarRequest;
 import br.com.myproject.projeto_para_estudo.infrastructure.dto.tarefa.TarefaRequest;
 import br.com.myproject.projeto_para_estudo.infrastructure.dto.tarefa.TarefaResponse;
 
@@ -36,7 +38,7 @@ public interface TarefaPortIn {
    * @param usuarioInfos Informações do usuário logado.
    * @return A resposta contendo os detalhes da tarefa atualizada.
    */
-  TarefaResponse atualizarTarefaDeUsuarioLogado(UUID id, TarefaRequest requestDTO, UserDetails usuarioInfos);
+  TarefaResponse atualizarTarefaDeUsuarioLogado(UUID id, TarefaAtualizarRequest requestDTO, UserDetails usuarioInfos);
 
   /**
    * Busca uma tarefa pelo ID do usuário logado.
@@ -55,4 +57,12 @@ public interface TarefaPortIn {
    */
   List<TarefaResponse> buscarTodasTarefasDeUsuarioLogado(UserDetails usuarioInfos);
 
+  /*
+   * Busca todas as tarefas do usuário logado com paginação.
+   *
+   * @param usuarioInfos Informações do usuário logado.
+   * @param page         Informações de paginação.
+   * @return A lista de respostas contendo os detalhes das tarefas encontradas.
+   */
+  List<TarefaResponse> buscarTodasTarefasDeUsuarioLogadoComPaginacao(UserDetails usuarioInfos, Pageable page);
 }

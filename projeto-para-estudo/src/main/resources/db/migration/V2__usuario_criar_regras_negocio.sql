@@ -128,8 +128,7 @@ GO
 
 CREATE PROCEDURE sp_AtualizarDadosUsuario (
     @p_id UNIQUEIDENTIFIER,
-    @p_nome VARCHAR(20),
-    @p_email VARCHAR(255)
+    @p_nome VARCHAR(20)
 )
 AS
 BEGIN
@@ -145,8 +144,7 @@ BEGIN
         END
 
         UPDATE usuario
-        SET nome = @p_nome,
-            email = @p_email
+        SET nome = @p_nome
         WHERE id = @p_id;
 
         COMMIT TRANSACTION;

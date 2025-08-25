@@ -30,6 +30,7 @@ import jakarta.servlet.DispatcherType;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
   @Bean
   public static PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
@@ -85,7 +86,9 @@ public class SecurityConfig {
           .cors(cors -> cors.configurationSource(corsConfigurationSource()))
           .authorizeHttpRequests(auth -> auth
               .requestMatchers("/api/v1/auth/**").permitAll()
-              .requestMatchers(HttpMethod.POST, "/api/v1/usuarios", "/api/v1/tarefas").permitAll()
+              .requestMatchers(HttpMethod.POST, "/api/v1/clientes", "/api/v1/fornecedores").permitAll()
+              .requestMatchers(HttpMethod.GET, "/api/v1/fornecedores/**", "/api/v1/produtos/**")
+              .permitAll()
               .anyRequest().authenticated())
           .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
           .authenticationProvider(authenticationProvider)
@@ -102,7 +105,8 @@ public class SecurityConfig {
       http
           .authorizeHttpRequests(auth -> auth
               .dispatcherTypeMatchers(DispatcherType.FORWARD).permitAll()
-              .requestMatchers("/", "/login", "/perform_login", "/cadastro-usuarios",
+              .requestMatchers("/", "/login", "/perform_login", "/cadastro-cliente",
+                  "/cadastro-fornecedor",
                   // ROTAS DO SWAGGER NO LUGAR CORRETO
                   "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
               .permitAll()
@@ -110,7 +114,7 @@ public class SecurityConfig {
           .formLogin(form -> form
               .loginPage("/login")
               .loginProcessingUrl("/perform_login")
-              // .defaultSuccessUrl("/dashboard", true)
+              .defaultSuccessUrl("/dashboard", true)
               .failureUrl("/login?error=true")
               .permitAll())
           .logout(logout -> logout

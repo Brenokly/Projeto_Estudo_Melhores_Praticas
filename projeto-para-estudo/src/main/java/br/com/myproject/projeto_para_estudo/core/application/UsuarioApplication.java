@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 import br.com.myproject.projeto_para_estudo.core.entity.Usuario;
 import br.com.myproject.projeto_para_estudo.core.port.in.UsuarioPortIn;
@@ -31,6 +32,7 @@ import lombok.RequiredArgsConstructor;
         4.  Usar as portas de saída novamente para persistir o resultado.
  */
 
+@Service
 @RequiredArgsConstructor
 public class UsuarioApplication implements UsuarioPortIn {
 
@@ -41,11 +43,13 @@ public class UsuarioApplication implements UsuarioPortIn {
        @Override
        public UsuarioResponse cadastrarUsuario(UsuarioRequest usuarioRequest) {
               if (usuarioRequest == null) {
-                     throw new IllegalArgumentException("Usuário inválido");
+                     throw new IllegalArgumentException("Dados de usuário inválido");
               }
 
               Usuario usuario = usuarioMapper.toDomain(usuarioRequest);
+
               usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
+
               return usuarioPortOut.save(usuario)
                             .map(usuarioMapper::toResponse)
                             .orElseThrow(() -> new RuntimeException("Erro ao cadastrar usuário"));
@@ -57,7 +61,8 @@ public class UsuarioApplication implements UsuarioPortIn {
                      throw new IllegalArgumentException("Usuário não autenticado");
               }
 
-              Usuario usuario = getClienteFromUserDetails(usuarioInfos);
+              Usuario usuario = getUsuarioFromUserDetails(usuarioInfos);
+
               return usuarioPortOut.findByEmail(usuario.getEmail())
                             .map(usuarioMapper::toResponse)
                             .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
@@ -71,29 +76,43 @@ public class UsuarioApplication implements UsuarioPortIn {
                      throw new IllegalArgumentException("Dados inválidos");
               }
 
-              Usuario usuario = getClienteFromUserDetails(usuarioInfos);
+              Usuario usuario = getUsuarioFromUserDetails(usuarioInfos);
+
               if (!usuario.getId().equals(id)) {
                      throw new AccessDeniedException("Ação permitida apenas para o usuário autenticado.");
               }
 
-              return usuarioPortOut.findById(id)
-                            .map(usuarioMapper::toDomain)
-                            .map(usuarioAtualizado -> {
-                                   usuarioAtualizado.setNome(requestDTO.nome());
-                                   return usuarioPortOut.save(usuarioAtualizado);
-                            })
-                            .map(usuarioMapper::toResponse)
-                            .orElseThrow(() -> new RuntimeException("Erro ao atualizar dados do usuário"));
+              usuario = usuarioPortOut.findById(id)
+                            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+              usuario.setNome(requestDTO.nome());
+
+              usuarioPortOut.save(usuario);
+
+              return usuarioMapper.toResponse(usuario);
        }
 
        @Override
        public void atualizarSenhaDoUsuarioLogado(UUID id, UsuarioSenhaAtualizadaRequest requestDTO,
                      UserDetails usuarioInfos) {
-              // TODO Auto-generated method stub
-              throw new UnsupportedOperationException("Unimplemented method 'atualizarSenhaDoUsuarioLogado'");
+              if (requestDTO == null || usuarioInfos == null || id == null) {
+                     throw new IllegalArgumentException("Dados inválidos");
+              }
+
+              Usuario usuario = getUsuarioFromUserDetails(usuarioInfos);
+              if (!usuario.getId().equals(id)) {
+                     throw new AccessDeniedException("Ação permitida apenas para o usuário autenticado.");
+              }
+
+              usuario = usuarioPortOut.findById(id)
+                            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+              usuarioPortOut.update(requestDTO.senhaAtual(), requestDTO.novaSenha(), requestDTO.confirmacaoNovaSenha());
+
+              usuarioPortOut.save(usuario);
        }
 
-       private Usuario getClienteFromUserDetails(UserDetails userDetails) {
+       private Usuario getUsuarioFromUserDetails(UserDetails userDetails) {
               if (!(userDetails instanceof Usuario)) {
                      throw new AccessDeniedException("Ação permitida apenas para usuários autenticados.");
               }
