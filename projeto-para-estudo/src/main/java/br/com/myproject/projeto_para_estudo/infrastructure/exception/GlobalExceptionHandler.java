@@ -70,4 +70,40 @@ public class GlobalExceptionHandler {
     return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
+  // Email duplicado
+  @ExceptionHandler(EmailDuplicadoException.class)
+  public ResponseEntity<ErrorResponseDTO> handleEmailDuplicadoException(EmailDuplicadoException ex) {
+    ErrorResponseDTO error = new ErrorResponseDTO(ex.getMessage(), HttpStatus.CONFLICT.value(), LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+  }
+
+  // SenhaIncorreta
+  @ExceptionHandler(SenhaIncorretaException.class)
+  public ResponseEntity<ErrorResponseDTO> handleSenhaIncorretaException(SenhaIncorretaException ex) {
+    ErrorResponseDTO error = new ErrorResponseDTO(ex.getMessage(), HttpStatus.UNAUTHORIZED.value(),
+        LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+  }
+
+  // SenhaNãoCoincidem
+  @ExceptionHandler(SenhaNaoCoincidemException.class)
+  public ResponseEntity<ErrorResponseDTO> handleSenhaNaoCoincidemException(SenhaNaoCoincidemException ex) {
+    ErrorResponseDTO error = new ErrorResponseDTO(ex.getMessage(), HttpStatus.UNAUTHORIZED.value(),
+        LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+  }
+
+  // TarefaNaoEncontrada
+  @ExceptionHandler(TarefaNaoEncontradaException.class)
+  public ResponseEntity<ErrorResponseDTO> handleTarefaNaoEncontradaException(TarefaNaoEncontradaException ex) {
+    ErrorResponseDTO error = new ErrorResponseDTO(ex.getMessage(), HttpStatus.NOT_FOUND.value(), LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+  }
+
+  // UsuarioNaoEncontrado
+  @ExceptionHandler(UsuarioNaoEncontradoException.class)
+  public ResponseEntity<ErrorResponseDTO> handleUsuarioNaoEncontradoException(UsuarioNaoEncontradoException ex) {
+    ErrorResponseDTO error = new ErrorResponseDTO(ex.getMessage(), HttpStatus.NOT_FOUND.value(), LocalDateTime.now());
+    return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+  }
 }

@@ -13,7 +13,6 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.myproject.projeto_para_estudo.core.entity.Usuario;
 import br.com.myproject.projeto_para_estudo.core.port.out.UsuarioPortOut;
+import lombok.RequiredArgsConstructor;
 
 /*
  * - infrastructure.adapter.out (Adaptadores de Saída)
@@ -34,33 +34,37 @@ import br.com.myproject.projeto_para_estudo.core.port.out.UsuarioPortOut;
  */
 
 @Repository
+@RequiredArgsConstructor
 public class UsuarioAdapterOut implements UsuarioPortOut {
 
-   @Autowired
-   private DataSource dataSource;
+   private final DataSource dataSource;
 
    @Override
    @Transactional
-   public Optional<Usuario> save(Usuario usuario) {
+   public Optional<Usuario> save(Usuario user) {
       String sql = "{call sp_SalvarUsuario(?, ?, ?, ?)}";
 
       try (Connection conn = dataSource.getConnection();
             CallableStatement cs = conn.prepareCall(sql)) {
 
-         cs.setString(1, usuario.getNome());
-         cs.setString(2, usuario.getEmail());
-         cs.setString(3, usuario.getSenha()); // Senha Hash
-
-         cs.registerOutParameter(4, java.sql.Types.VARCHAR);
+         cs.setString(1, user.getNome());
+         cs.setString(2, user.getEmail());
+         cs.setString(3, user.getSenha());
+         cs.registerOutParameter(4, Types.VARCHAR);
 
          cs.execute();
 
-         String novoIdString = cs.getString(4);
-         UUID novoId = UUID.fromString(novoIdString);
+         String newIdStr = cs.getString(4);
+         if (newIdStr == null) {
+            throw new IllegalStateException("A procedure executou sem erros, mas não retornou um ID.");
+         }
 
-         return findById(novoId);
+         UUID newId = UUID.fromString(newIdStr);
+         return findById(newId);
+
       } catch (SQLException e) {
-         throw new RuntimeException("Erro ao salvar usuário no banco de dados.", e);
+         // Deixa o AOP capturar
+         throw new RuntimeException(e.getMessage(), e);
       }
    }
 
@@ -79,8 +83,9 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
                UUID usuarioId = UUID.fromString(rs.getString("id"));
                String usuarioNome = rs.getString("nome");
                String usuarioEmail = rs.getString("email");
+               String usuarioSenha = rs.getString("senha");
 
-               return Optional.of(new Usuario(usuarioId, usuarioNome, usuarioEmail));
+               return Optional.of(new Usuario(usuarioId, usuarioNome, usuarioEmail, usuarioSenha));
             } else {
                return Optional.empty();
             }
@@ -105,8 +110,9 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
                UUID usuarioId = UUID.fromString(rs.getString("id"));
                String usuarioNome = rs.getString("nome");
                String usuarioEmail = rs.getString("email");
+               String usuarioSenha = rs.getString("senha");
 
-               return Optional.of(new Usuario(usuarioId, usuarioNome, usuarioEmail));
+               return Optional.of(new Usuario(usuarioId, usuarioNome, usuarioEmail, usuarioSenha));
             } else {
                return Optional.empty();
             }

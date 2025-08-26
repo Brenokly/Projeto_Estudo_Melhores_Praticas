@@ -1,6 +1,8 @@
 package br.com.myproject.projeto_para_estudo.infrastructure.security;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,14 +27,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private final JwtService jwtService;
   private final ApplicationUserDetailsService userDetailsService;
 
+  private static final List<String> PUBLIC_URLS = Arrays.asList(
+      "/api/v1/auth/login",
+      "/swagger-ui.html",
+      "/swagger-ui",
+      "/v3/api-docs");
+
+  @Override
+  protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    String requestURI = request.getRequestURI();
+    return PUBLIC_URLS.stream().anyMatch(publicUrl -> requestURI.startsWith(publicUrl));
+  }
+
   @Override
   protected void doFilterInternal(
       @NonNull HttpServletRequest request,
       @NonNull HttpServletResponse response,
       @NonNull FilterChain filterChain) throws ServletException, IOException {
-    String jwt = extractJwtFromCookie(request);
-    final String username = jwtService.extractUsername(jwt);
 
+    String jwt = extractJwtFromCookie(request);
+
+    if (jwt == null) {
+      filterChain.doFilter(request, response);
+      return;
+    }
+
+    final String username = jwtService.extractUsername(jwt);
     if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
       UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
       if (jwtService.isTokenValid(jwt, userDetails)) {
@@ -58,5 +78,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     return null;
   }
-
 }

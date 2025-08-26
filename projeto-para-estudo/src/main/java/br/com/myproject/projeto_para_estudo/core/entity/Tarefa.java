@@ -5,14 +5,12 @@ import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 // Entidades JPA puras: Sem dependência do mundo externo ou de framework
 
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
 public class Tarefa {
   private UUID id;

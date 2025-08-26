@@ -2,7 +2,8 @@
 
 -- Operação de salvamento de um usuário
 
-CREATE PROCEDURE sp_SalvarUsuario (
+CREATE OR ALTER PROCEDURE sp_SalvarUsuario
+    (
     @p_nome VARCHAR(20),
     @p_email VARCHAR(255),
     @p_senha_hash VARCHAR(255),
@@ -16,42 +17,30 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Validação de existência do usuário
-        IF EXISTS (SELECT 1 FROM usuario WHERE email = @p_email)
-        BEGIN
-            -- RAISERROR lança o erro, e a transação é revertida no CATCH.
-            RAISERROR('Usuário já existe com o email fornecido.', 16, 50001);
-        END
+        IF EXISTS (SELECT 1
+    FROM usuario
+    WHERE email = @p_email)
+            THROW 50001, 'O e-mail informado já está cadastrado no sistema.', 1;
 
-        -- Gera o novo ID e insere o registro
-        DECLARE @novoId UNIQUEIDENTIFIER = NEWID();
+        DECLARE @inserted_id TABLE (id UNIQUEIDENTIFIER);
 
-        INSERT INTO usuario (id, nome, email, senha)
-        VALUES (@novoId, @p_nome, @p_email, @p_senha_hash);
+        INSERT INTO usuario
+        (nome, email, senha)
+    OUTPUT INSERTED.id INTO @inserted_id(id)
+    VALUES
+        (@p_nome, @p_email, @p_senha_hash);
 
-        -- Atribui o ID gerado ao parâmetro de saída
-        SET @p_usuario_id = @novoId;
+        SELECT @p_usuario_id = id
+    FROM @inserted_id;
 
         COMMIT TRANSACTION;
-
     END TRY
     BEGIN CATCH
-        -- Garante que a transação seja revertida em caso de erro
-        IF XACT_STATE() <> 0
-        BEGIN
+        IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
-        END
 
-        EXEC sp_report_erro;
-
-        -- Re-lança a exceção original com todos os detalhes
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-
-    END CATCH;
+        THROW;
+    END CATCH
 END;
 GO
 
@@ -63,9 +52,9 @@ CREATE FUNCTION ufn_BuscarUsuarioPorEmail (
 RETURNS TABLE
 AS
 RETURN (
-    SELECT id, nome, email
-    FROM usuario
-    WHERE email = @p_email
+    SELECT id, nome, email, senha
+FROM usuario
+WHERE email = @p_email
 );
 GO
 
@@ -77,15 +66,16 @@ CREATE FUNCTION ufn_BuscarUsuarioPorId (
 RETURNS TABLE
 AS
 RETURN (
-    SELECT id, nome, email
-    FROM usuario
-    WHERE id = @p_id
+    SELECT id, nome, email, senha
+FROM usuario
+WHERE id = @p_id
 );
 GO
 
 -- Delete Usuário por ID
 
-CREATE PROCEDURE sp_DeleteUsuarioPorId (
+CREATE PROCEDURE sp_DeleteUsuarioPorId
+    (
     @p_id UNIQUEIDENTIFIER
 )
 AS
@@ -96,10 +86,12 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        IF NOT EXISTS (SELECT 1 FROM usuario WHERE id = @p_id)
+        IF NOT EXISTS (SELECT 1
+    FROM usuario
+    WHERE id = @p_id)
         BEGIN
-            RAISERROR('Usuário não encontrado.', 16, 50002);
-        END
+        RAISERROR('Usuário não encontrado.', 16, 50002);
+    END
 
         DELETE FROM usuario WHERE id = @p_id;
 
@@ -109,8 +101,8 @@ BEGIN
     BEGIN CATCH
         IF XACT_STATE() <> 0
         BEGIN
-            ROLLBACK TRANSACTION;
-        END
+        ROLLBACK TRANSACTION;
+    END
 
         EXEC sp_report_erro;
 
@@ -126,7 +118,8 @@ GO
 
 -- Atualizar Usuário
 
-CREATE PROCEDURE sp_AtualizarDadosUsuario (
+CREATE PROCEDURE sp_AtualizarDadosUsuario
+    (
     @p_id UNIQUEIDENTIFIER,
     @p_nome VARCHAR(20)
 )
@@ -138,10 +131,12 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        IF NOT EXISTS (SELECT 1 FROM usuario WHERE id = @p_id)
+        IF NOT EXISTS (SELECT 1
+    FROM usuario
+    WHERE id = @p_id)
         BEGIN
-            RAISERROR('Usuário não encontrado.', 16, 50002);
-        END
+        RAISERROR('Usuário não encontrado.', 16, 50002);
+    END
 
         UPDATE usuario
         SET nome = @p_nome
@@ -153,8 +148,8 @@ BEGIN
     BEGIN CATCH
         IF XACT_STATE() <> 0
         BEGIN
-            ROLLBACK TRANSACTION;
-        END
+        ROLLBACK TRANSACTION;
+    END
 
         EXEC sp_report_erro;
 
@@ -170,7 +165,8 @@ GO
 
 -- Atualizar senha do Usuário
 
-CREATE PROCEDURE sp_AtualizarSenhaUsuario (
+CREATE PROCEDURE sp_AtualizarSenhaUsuario
+    (
     @p_id UNIQUEIDENTIFIER,
     @p_senha_atual_parametro VARCHAR(255),
     @p_nova_senha_hash VARCHAR(255),
@@ -186,22 +182,26 @@ BEGIN
 
         DECLARE @p_senha_atual_buscada VARCHAR(255);
 
-        SELECT @p_senha_atual_buscada = senha FROM usuario WHERE id = @p_id;
+        SELECT @p_senha_atual_buscada = senha
+    FROM usuario
+    WHERE id = @p_id;
 
         IF @p_senha_atual_parametro <> @p_senha_atual_buscada
         BEGIN
-            RAISERROR('A senha atual está incorreta.', 16, 50004);
-        END
+        RAISERROR('A senha atual está incorreta.', 16, 50004);
+    END
 
-        IF NOT EXISTS (SELECT 1 FROM usuario WHERE id = @p_id)
+        IF NOT EXISTS (SELECT 1
+    FROM usuario
+    WHERE id = @p_id)
         BEGIN
-            RAISERROR('Usuário não encontrado.', 16, 50002);
-        END
+        RAISERROR('Usuário não encontrado.', 16, 50002);
+    END
 
         IF @p_nova_senha_hash <> @p_confirmacao_senha_hash
         BEGIN
-            RAISERROR('A nova senha e a confirmação da senha não coincidem.', 16, 50003);
-        END
+        RAISERROR('A nova senha e a confirmação da senha não coincidem.', 16, 50003);
+    END
 
         UPDATE usuario
         SET senha = @p_nova_senha_hash
@@ -213,8 +213,8 @@ BEGIN
     BEGIN CATCH
         IF XACT_STATE() <> 0
         BEGIN
-            ROLLBACK TRANSACTION;
-        END
+        ROLLBACK TRANSACTION;
+    END
 
         EXEC sp_report_erro;
 
@@ -238,7 +238,9 @@ AS
 BEGIN
     DECLARE @resultado BIT;
 
-    IF EXISTS (SELECT 1 FROM usuario WHERE email = @p_email)
+    IF EXISTS (SELECT 1
+    FROM usuario
+    WHERE email = @p_email)
     BEGIN
         SET @resultado = 1;
     END
@@ -261,7 +263,9 @@ AS
 BEGIN
     DECLARE @resultado BIT;
 
-    IF EXISTS (SELECT 1 FROM usuario WHERE id = @p_id)
+    IF EXISTS (SELECT 1
+    FROM usuario
+    WHERE id = @p_id)
     BEGIN
         SET @resultado = 1;
     END
@@ -281,7 +285,7 @@ RETURNS TABLE
 AS
 RETURN (
     SELECT id, nome, email
-    FROM usuario
+FROM usuario
 );
 GO
 
@@ -295,8 +299,8 @@ RETURNS TABLE
 AS
 RETURN (
     SELECT id, nome, email
-    FROM usuario
-    ORDER BY nome
+FROM usuario
+ORDER BY nome
     OFFSET (@p_pagina - 1) * @p_tamanho ROWS
     FETCH NEXT @p_tamanho ROWS ONLY
 );

@@ -8,7 +8,7 @@ CREATE PROCEDURE sp_SalvarTarefa(
     @p_data_vencimento DATE,
     @p_concluida BIT,
     @p_usuario_id UNIQUEIDENTIFIER,
-    @p_tarefa_id UNIQUEIDENTIFIER OUTPUT
+    @p_tarefa_id VARCHAR(36) OUTPUT
 )
 AS
 BEGIN
@@ -34,8 +34,8 @@ BEGIN
     VALUES
         (@p_titulo, @p_descricao, @p_data_vencimento, @p_concluida, @p_usuario_id, @novoId);
 
-        -- Atribui o ID gerado ao parâmetro de saída
-        SET @p_tarefa_id = @novoId;
+        -- Atribui o ID gerado (como string) ao parâmetro de saída
+        SET @p_tarefa_id = CAST(@novoId AS VARCHAR(36));
 
         COMMIT TRANSACTION;
 
@@ -223,8 +223,9 @@ RETURNS TABLE
 AS
 RETURN (
     SELECT id, titulo, descricao, data_vencimento, concluida, usuario_id
-    FROM tarefa WHERE usuario_id = @p_usuario_id
-    ORDER BY titulo
+FROM tarefa
+WHERE usuario_id = @p_usuario_id
+ORDER BY titulo
     OFFSET (@p_pagina - 1) * @p_tamanho ROWS
     FETCH NEXT @p_tamanho ROWS ONLY
 );
