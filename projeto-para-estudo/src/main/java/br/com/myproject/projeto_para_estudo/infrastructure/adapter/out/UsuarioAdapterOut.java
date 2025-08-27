@@ -7,7 +7,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,6 +18,9 @@ import javax.sql.DataSource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,34 +43,33 @@ import lombok.RequiredArgsConstructor;
 public class UsuarioAdapterOut implements UsuarioPortOut {
 
    private final DataSource dataSource;
+   private final JdbcTemplate jdbcTemplate;
 
    @Override
    @Transactional
-   public Optional<Usuario> save(Usuario user) {
-      String sql = "{call sp_SalvarUsuario(?, ?, ?, ?)}";
+   public Usuario save(Usuario user) {
+      List<SqlParameter> declaredParams = Arrays.asList(
+            new SqlParameter(Types.VARCHAR),
+            new SqlParameter(Types.VARCHAR),
+            new SqlParameter(Types.VARCHAR),
+            new SqlOutParameter("novoId", Types.VARCHAR));
 
-      try (Connection conn = dataSource.getConnection();
-            CallableStatement cs = conn.prepareCall(sql)) {
+      String sql = "{call sp_SalvarUsuario(?,?,?,?)}";
 
+      Map<String, Object> resultMap = jdbcTemplate.call(conn -> {
+         CallableStatement cs = conn.prepareCall(sql);
          cs.setString(1, user.getNome());
          cs.setString(2, user.getEmail());
          cs.setString(3, user.getSenha());
-         cs.registerOutParameter(4, Types.VARCHAR);
+         cs.registerOutParameter(4, java.sql.Types.VARCHAR);
+         return cs;
+      }, declaredParams);
 
-         cs.execute();
+      String novoIdString = (String) resultMap.get("novoId");
+      UUID novoId = UUID.fromString(novoIdString);
+      user.setId(novoId);
 
-         String newIdStr = cs.getString(4);
-         if (newIdStr == null) {
-            throw new IllegalStateException("A procedure executou sem erros, mas não retornou um ID.");
-         }
-
-         UUID newId = UUID.fromString(newIdStr);
-         return findById(newId);
-
-      } catch (SQLException e) {
-         // Deixa o AOP capturar
-         throw new RuntimeException(e.getMessage(), e);
-      }
+      return user;
    }
 
    @Override

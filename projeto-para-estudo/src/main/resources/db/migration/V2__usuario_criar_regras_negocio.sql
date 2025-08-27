@@ -7,7 +7,7 @@ CREATE OR ALTER PROCEDURE sp_SalvarUsuario
     @p_nome VARCHAR(20),
     @p_email VARCHAR(255),
     @p_senha_hash VARCHAR(255),
-    @p_usuario_id UNIQUEIDENTIFIER OUTPUT
+    @p_usuario_id VARCHAR(36) OUTPUT
 )
 AS
 BEGIN
@@ -22,16 +22,16 @@ BEGIN
     WHERE email = @p_email)
             THROW 50001, 'O e-mail informado já está cadastrado no sistema.', 1;
 
-        DECLARE @inserted_id TABLE (id UNIQUEIDENTIFIER);
+        DECLARE @novoId UNIQUEIDENTIFIER;
 
         INSERT INTO usuario
         (nome, email, senha)
-    OUTPUT INSERTED.id INTO @inserted_id(id)
+    OUTPUT INSERTED.id INTO @novoId
     VALUES
         (@p_nome, @p_email, @p_senha_hash);
 
-        SELECT @p_usuario_id = id
-    FROM @inserted_id;
+        -- Atribui o ID gerado (como string) ao parâmetro de saída
+        SET @p_usuario_id = CAST(@novoId AS VARCHAR(36));
 
         COMMIT TRANSACTION;
     END TRY
@@ -89,9 +89,7 @@ BEGIN
         IF NOT EXISTS (SELECT 1
     FROM usuario
     WHERE id = @p_id)
-        BEGIN
-        RAISERROR('Usuário não encontrado.', 16, 50002);
-    END
+        THROW 50002, 'Usuário não encontrado.', 1;
 
         DELETE FROM usuario WHERE id = @p_id;
 
@@ -100,18 +98,8 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0
-        BEGIN
         ROLLBACK TRANSACTION;
-    END
-
-        EXEC sp_report_erro;
-
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-
+        THROW;
     END CATCH;
 END;
 GO
@@ -134,9 +122,7 @@ BEGIN
         IF NOT EXISTS (SELECT 1
     FROM usuario
     WHERE id = @p_id)
-        BEGIN
-        RAISERROR('Usuário não encontrado.', 16, 50002);
-    END
+        THROW 50002, 'Usuário não encontrado.', 1;
 
         UPDATE usuario
         SET nome = @p_nome
@@ -147,18 +133,9 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0
-        BEGIN
         ROLLBACK TRANSACTION;
-    END
 
-        EXEC sp_report_erro;
-
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-
+        THROW;
     END CATCH;
 END;
 GO
@@ -187,21 +164,15 @@ BEGIN
     WHERE id = @p_id;
 
         IF @p_senha_atual_parametro <> @p_senha_atual_buscada
-        BEGIN
-        RAISERROR('A senha atual está incorreta.', 16, 50004);
-    END
+        THROW 50004, 'A senha atual está incorreta.', 1;
 
         IF NOT EXISTS (SELECT 1
     FROM usuario
     WHERE id = @p_id)
-        BEGIN
-        RAISERROR('Usuário não encontrado.', 16, 50002);
-    END
+        THROW 50002, 'Usuário não encontrado.', 1;
 
         IF @p_nova_senha_hash <> @p_confirmacao_senha_hash
-        BEGIN
-        RAISERROR('A nova senha e a confirmação da senha não coincidem.', 16, 50003);
-    END
+            THROW 50003, 'A nova senha e a confirmação da senha não coincidem.', 1;
 
         UPDATE usuario
         SET senha = @p_nova_senha_hash
@@ -212,18 +183,9 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0
-        BEGIN
         ROLLBACK TRANSACTION;
-    END
 
-        EXEC sp_report_erro;
-
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-
+        THROW;
     END CATCH;
 END;
 GO

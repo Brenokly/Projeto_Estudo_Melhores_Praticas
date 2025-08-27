@@ -8,54 +8,66 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.myproject.projeto_para_estudo.core.entity.Tarefa;
 import br.com.myproject.projeto_para_estudo.core.port.out.TarefaPortOut;
+import lombok.RequiredArgsConstructor;
 
 @Repository
+@RequiredArgsConstructor
 public class TarefaAdapterOut implements TarefaPortOut {
 
-  @Autowired
-  private DataSource dataSource;
+  private final DataSource dataSource;
+  private final JdbcTemplate jdbcTemplate;
 
   @Override
-  @Transactional()
+  @Transactional
   public Tarefa save(Tarefa tarefa) {
+    // 1. Declaramos todos os parâmetros, incluindo o de saída (OUT)
+    List<SqlParameter> declaredParams = Arrays.asList(
+        new SqlParameter(Types.VARCHAR),
+        new SqlParameter(Types.VARCHAR),
+        new SqlParameter(Types.DATE),
+        new SqlParameter(Types.BOOLEAN),
+        new SqlParameter(Types.OTHER),
+        new SqlOutParameter("novoId", Types.VARCHAR));
+
     String sql = "{call sp_SalvarTarefa(?,?,?,?,?,?)}";
 
-    try (Connection conn = dataSource.getConnection();
-        CallableStatement cs = conn.prepareCall(sql)) {
-
+    // 2. Executamos a chamada e obtemos os parâmetros de saída em um Map
+    Map<String, Object> resultMap = jdbcTemplate.call(conn -> {
+      CallableStatement cs = conn.prepareCall(sql);
       cs.setString(1, tarefa.getTitulo());
       cs.setString(2, tarefa.getDescricao());
       cs.setDate(3, java.sql.Date.valueOf(tarefa.getDataVencimento()));
-      cs.setObject(4, tarefa.isConcluida());
-      cs.setObject(5, tarefa.getUsuario().getId());
+      cs.setBoolean(4, tarefa.isConcluida());
+      cs.setObject(5, tarefa.getUsuario().getId()); 
       cs.registerOutParameter(6, java.sql.Types.VARCHAR);
+      return cs;
+    }, declaredParams);
 
-      cs.execute();
+    // 3. Recuperamos o ID do resultado e atualizamos o objeto
+    String novoIdString = (String) resultMap.get("novoId");
+    UUID novoId = UUID.fromString(novoIdString);
+    tarefa.setId(novoId);
 
-      String novoIdString = cs.getString(6);
-      UUID novoId = UUID.fromString(novoIdString);
-
-      tarefa.setId(novoId);
-
-      return tarefa;
-    } catch (SQLException e) {
-      throw new RuntimeException("Erro ao salvar tarefa no banco de dados.", e);
-    }
+    return tarefa;
   }
 
   @Override

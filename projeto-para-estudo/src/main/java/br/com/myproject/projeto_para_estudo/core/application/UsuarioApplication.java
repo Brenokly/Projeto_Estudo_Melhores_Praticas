@@ -50,9 +50,14 @@ public class UsuarioApplication implements UsuarioPortIn {
 
               usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
 
-              return usuarioPortOut.save(usuario)
-                            .map(usuarioMapper::toResponse)
-                            .orElseThrow(() -> new RuntimeException("Erro ao cadastrar usuário"));
+              usuario = usuarioPortOut.save(usuario);
+
+              if (usuario == null) {
+                     throw new RuntimeException("Erro ao cadastrar usuário");
+              }
+
+              return usuarioMapper.toResponse(usuario);
+
        }
 
        @Override

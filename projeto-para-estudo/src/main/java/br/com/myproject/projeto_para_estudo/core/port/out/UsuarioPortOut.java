@@ -28,7 +28,7 @@ public interface UsuarioPortOut {
     * @post O usuário é persistido no banco de dados
     * @throws RegraNegocioException se o usuário não for válido.
     */
-   Optional<Usuario> save(Usuario user);
+   Usuario save(Usuario user);
 
    /**
     * Busca um usuário pelo email.

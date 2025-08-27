@@ -22,9 +22,7 @@ BEGIN
         IF NOT EXISTS (SELECT 1
     FROM usuario
     WHERE id = @p_usuario_id)
-        BEGIN
-        RAISERROR('Usuário não encontrado.', 16, 50002);
-    END
+        THROW 50002, 'Usuário não encontrado.', 1;
 
         -- Gera o novo ID e insere o registro
         DECLARE @novoId UNIQUEIDENTIFIER = NEWID();
@@ -43,19 +41,9 @@ BEGIN
     BEGIN CATCH
         -- Garante que a transação seja revertida em caso de erro
         IF XACT_STATE() <> 0
-        BEGIN
         ROLLBACK TRANSACTION;
-    END
 
-        EXEC sp_report_erro;
-
-        -- Re-lança a exceção original com todos os detalhes
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-
+        THROW;
     END CATCH;
 END;
 GO
@@ -91,9 +79,7 @@ BEGIN
         IF NOT EXISTS (SELECT 1
     FROM tarefa
     WHERE id = @p_id)
-        BEGIN
-        RAISERROR('Tarefa não encontrada.', 16, 50005);
-    END
+        THROW 50005, 'Tarefa não encontrada.', 1;
 
         DELETE FROM tarefa WHERE id = @p_id;
 
@@ -102,18 +88,9 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0
-        BEGIN
         ROLLBACK TRANSACTION;
-    END
 
-        EXEC sp_report_erro;
-
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-
+        THROW;
     END CATCH;
 END;
 GO
@@ -140,9 +117,7 @@ BEGIN
         IF NOT EXISTS (SELECT 1
     FROM tarefa
     WHERE id = @p_id)
-        BEGIN
-        RAISERROR('Tarefa não encontrada.', 16, 50005);
-    END
+        THROW 50005, 'Tarefa não encontrada.', 1;
 
         UPDATE tarefa
         SET titulo = @p_titulo,
@@ -157,18 +132,9 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0
-        BEGIN
         ROLLBACK TRANSACTION;
-    END
 
-        EXEC sp_report_erro;
-
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-
+        THROW;
     END CATCH;
 END;
 GO
