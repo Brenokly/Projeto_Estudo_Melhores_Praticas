@@ -7,7 +7,8 @@ CREATE OR ALTER PROCEDURE sp_SalvarUsuario
     @p_nome VARCHAR(20),
     @p_email VARCHAR(255),
     @p_senha_hash VARCHAR(255),
-    @p_usuario_id VARCHAR(36) OUTPUT
+    @p_roles ListaDeIds READONLY,
+    @p_usuario_id UNIQUEIDENTIFIER OUTPUT
 )
 AS
 BEGIN
@@ -17,11 +18,25 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        -- PASSO 1: VALIDAR TODOS OS INPUTS PRIMEIRO
         IF EXISTS (SELECT 1
     FROM usuario
     WHERE email = @p_email)
             THROW 50001, 'O e-mail informado já está cadastrado no sistema.', 1;
 
+        DECLARE @countRolesEnviadas INT = (SELECT COUNT(*)
+    FROM @p_roles);
+        IF @countRolesEnviadas > 0 -- Só valida se alguma role foi enviada
+        BEGIN
+        DECLARE @countRolesValidas INT = (SELECT COUNT(*)
+        FROM roles
+        WHERE id IN (SELECT id
+        FROM @p_roles));
+        IF @countRolesEnviadas <> @countRolesValidas
+                THROW 50012, 'Um ou mais IDs de roles fornecidos são inválidos.', 1;
+    END
+
+        -- PASSO 2: EXECUTAR AS INSERÇÕES
         DECLARE @novoId UNIQUEIDENTIFIER;
 
         INSERT INTO usuario
@@ -30,32 +45,95 @@ BEGIN
     VALUES
         (@p_nome, @p_email, @p_senha_hash);
 
-        -- Atribui o ID gerado (como string) ao parâmetro de saída
-        SET @p_usuario_id = CAST(@novoId AS VARCHAR(36));
+        -- Atribui as roles ao usuário (se houver alguma)
+        IF @countRolesEnviadas > 0
+        BEGIN
+        INSERT INTO usuarios_roles
+            (usuario_id, roles_id)
+        SELECT @novoId, id
+        FROM @p_roles;
+    END
+
+        SET @p_usuario_id = @novoId;
 
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
-
         THROW;
     END CATCH
 END;
 GO
 
--- Busca de um usuário por Email
-
-CREATE FUNCTION ufn_BuscarUsuarioPorEmail (
-    @p_email VARCHAR(255)
+CREATE FUNCTION ufn_BuscarRolesDeUsuario (
+    @p_usuario_id UNIQUEIDENTIFIER
 )
 RETURNS TABLE
 AS
 RETURN (
-    SELECT id, nome, email, senha
-FROM usuario
-WHERE email = @p_email
+    SELECT r.id, r.nome
+FROM usuarios_roles ur
+    INNER JOIN roles r ON ur.roles_id = r.id
+WHERE ur.usuario_id = @p_usuario_id
 );
+GO
+
+-- Busca de um usuário por Email
+
+CREATE OR ALTER PROCEDURE sp_BuscarUsuarioComRolesPorEmail
+    (
+    @p_email VARCHAR(255)
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    -- serve para evitar mensagens desnecessárias
+    SET XACT_ABORT ON;
+    -- serve para garantir que a transação seja abortada em caso de erro
+
+    BEGIN TRY
+
+    DECLARE @usuarioId UNIQUEIDENTIFIER;
+
+    -- Passo 1: Apenas atribui o valor à variável, sem retornar dados.
+    SELECT
+        @usuarioId = id
+    FROM
+        usuario
+    WHERE
+        email = @p_email;
+
+    -- Agora, se um usuário foi encontrado, retornamos os dois conjuntos de resultados.
+    IF @usuarioId IS NULL
+    BEGIN
+        ;THROW 50005, 'Usuário não encontrado.', 1;
+    END
+
+    -- Passo 2: Retorna os dados completos do usuário como o primeiro resultado.
+    SELECT
+        id,
+        nome,
+        email,
+        senha
+    FROM
+        usuario
+    WHERE
+        id = @usuarioId;
+
+    -- Passo 3: Retorna as roles do usuário como o segundo resultado.
+    SELECT
+        *
+    FROM
+        ufn_BuscarRolesDeUsuario(@usuarioId);
+
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END
 GO
 
 -- Buscar Usuário por ID

@@ -57,7 +57,7 @@ public class TarefaAdapterOut implements TarefaPortOut {
       cs.setString(2, tarefa.getDescricao());
       cs.setDate(3, java.sql.Date.valueOf(tarefa.getDataVencimento()));
       cs.setBoolean(4, tarefa.isConcluida());
-      cs.setObject(5, tarefa.getUsuario().getId()); 
+      cs.setObject(5, tarefa.getUsuario().getId());
       cs.registerOutParameter(6, java.sql.Types.VARCHAR);
       return cs;
     }, declaredParams);

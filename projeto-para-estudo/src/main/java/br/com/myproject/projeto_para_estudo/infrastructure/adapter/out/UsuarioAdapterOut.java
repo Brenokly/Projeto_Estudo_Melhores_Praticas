@@ -12,18 +12,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.CallableStatementCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlOutParameter;
 import org.springframework.jdbc.core.SqlParameter;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.microsoft.sqlserver.jdbc.SQLServerDataTable;
+
+import br.com.myproject.projeto_para_estudo.core.entity.Roles;
 import br.com.myproject.projeto_para_estudo.core.entity.Usuario;
 import br.com.myproject.projeto_para_estudo.core.port.out.UsuarioPortOut;
 import lombok.RequiredArgsConstructor;
@@ -48,24 +53,39 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
    @Override
    @Transactional
    public Usuario save(Usuario user) {
-      List<SqlParameter> declaredParams = Arrays.asList(
-            new SqlParameter(Types.VARCHAR),
-            new SqlParameter(Types.VARCHAR),
-            new SqlParameter(Types.VARCHAR),
-            new SqlOutParameter("novoId", Types.VARCHAR));
+      String sql = "{call sp_SalvarUsuario(?,?,?,?,?)}";
 
-      String sql = "{call sp_SalvarUsuario(?,?,?,?)}";
+      List<UUID> roleIds = user.getRoles().stream()
+            .map(Roles::getId)
+            .collect(Collectors.toList());
+
+      List<SqlParameter> declaredParams = Arrays.asList(
+            new SqlParameter("p_nome", java.sql.Types.VARCHAR),
+            new SqlParameter("p_email", java.sql.Types.VARCHAR),
+            new SqlParameter("p_senha_hash", java.sql.Types.VARCHAR),
+            new SqlParameter("p_roles", microsoft.sql.Types.STRUCTURED, "ListaDeIds"),
+            new SqlOutParameter("p_usuario_id", java.sql.Types.VARCHAR));
 
       Map<String, Object> resultMap = jdbcTemplate.call(conn -> {
          CallableStatement cs = conn.prepareCall(sql);
          cs.setString(1, user.getNome());
          cs.setString(2, user.getEmail());
          cs.setString(3, user.getSenha());
-         cs.registerOutParameter(4, java.sql.Types.VARCHAR);
+
+         SQLServerDataTable rolesTable = new SQLServerDataTable();
+         rolesTable.addColumnMetadata("id", java.sql.Types.CHAR);
+
+         for (UUID roleId : roleIds) {
+            rolesTable.addRow(roleId.toString());
+         }
+
+         cs.setObject(4, rolesTable);
+         cs.registerOutParameter(5, java.sql.Types.VARCHAR);
+
          return cs;
       }, declaredParams);
 
-      String novoIdString = (String) resultMap.get("novoId");
+      String novoIdString = (String) resultMap.get("p_usuario_id");
       UUID novoId = UUID.fromString(novoIdString);
       user.setId(novoId);
 
@@ -75,28 +95,42 @@ public class UsuarioAdapterOut implements UsuarioPortOut {
    @Override
    @Transactional(readOnly = true)
    public Optional<Usuario> findByEmail(String email) {
-      String sql = "SELECT * FROM ufn_BuscarUsuarioPorEmail(?)";
+      String sql = "{call sp_BuscarUsuarioComRolesPorEmail(?)}";
 
-      try (Connection conn = dataSource.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+      Usuario usuarioCompleto = jdbcTemplate.execute(sql, (CallableStatementCallback<Usuario>) cs -> {
+         cs.setString(1, email);
+         cs.execute();
 
-         ps.setString(1, email);
+         Usuario usuario = null;
 
-         try (ResultSet rs = ps.executeQuery()) {
+         // Processa o primeiro resultado (os dados do usuário)
+         try (ResultSet rs = cs.getResultSet()) {
             if (rs.next()) {
-               UUID usuarioId = UUID.fromString(rs.getString("id"));
-               String usuarioNome = rs.getString("nome");
-               String usuarioEmail = rs.getString("email");
-               String usuarioSenha = rs.getString("senha");
-
-               return Optional.of(new Usuario(usuarioId, usuarioNome, usuarioEmail, usuarioSenha));
-            } else {
-               return Optional.empty();
+               usuario = new Usuario();
+               usuario.setId(rs.getObject("id", UUID.class));
+               usuario.setNome(rs.getString("nome"));
+               usuario.setEmail(rs.getString("email"));
+               usuario.setSenha(rs.getString("senha"));
+               usuario.setRoles(new ArrayList<>());
             }
          }
-      } catch (SQLException e) {
-         throw new RuntimeException("Erro ao buscar usuário por email no banco de dados.", e);
-      }
+
+         // Se um usuário foi encontrado, processa o segundo resultado (as roles)
+         if (usuario != null && cs.getMoreResults()) {
+            try (ResultSet rs = cs.getResultSet()) {
+               while (rs.next()) {
+                  Roles role = new Roles();
+                  role.setId(rs.getObject("id", UUID.class));
+                  role.setNome(rs.getString("nome"));
+                  usuario.getRoles().add(role);
+               }
+            }
+         }
+
+         return usuario;
+      });
+
+      return Optional.ofNullable(usuarioCompleto);
    }
 
    @Override
